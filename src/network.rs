@@ -2,7 +2,6 @@ use std::fs;
 use reqwest::get;
 use reqwest::header::HeaderMap;
 
-
 pub(crate) async fn fetch_raw_data(url: String) -> Result<String, String> {
     match get(url).await {
         Ok(response) => match response.text().await {

@@ -1,6 +1,11 @@
-use futures::stream::StreamExt;
 use futures::stream::futures_unordered::FuturesUnordered;
+use futures::stream::StreamExt;
+use std::io;
+use std::io::Write;
 use std::process::exit;
+use std::time::Duration;
+
+use device_query::{DeviceQuery, DeviceState, Keycode};
 
 mod network;
 mod parser;
@@ -8,7 +13,7 @@ mod settings;
 
 #[tokio::main]
 async fn main() {
-    
+
     // 0. App settings
     let (settings, config_file_message) = settings::load_setting();
     println!("{}", config_file_message);
@@ -78,8 +83,90 @@ async fn main() {
 }
 
 async fn finish(seconds: u8) {
-    println!("Выполнение программы завершено");
-    
-    // TODO: implement time-out
+    print!("Выполнение программы будет завершено через {seconds} секунд ");
+    print!("Нажмите любую клавишу, чтобы отменить завершение ");
+
+    let join = tokio::task::spawn(async move {
+        let device_state = DeviceState::new();
+        loop {
+            let keys: Vec<Keycode> = device_state.get_keys();
+            if !keys.is_empty() {
+                break;
+            }
+        }
+    });
+
+    for _ in 0..seconds {
+        async_std::task::sleep(Duration::from_millis(999)).await;
+        if join.is_finished() {
+            break;
+        }
+
+        print!(".");
+        io::stdout().flush().expect("TODO: panic message");
+    }
+
+    // infinite loop
+    if join.is_finished() {
+        println!("\nЗавершение отменено пользователем");
+        let markers = [
+            "-",
+            "\\",
+            "|",
+            "/",
+            "- н       c      ч     з",
+            "\\ на      ct     чт    за",
+            "| наж     ctr    что   зак",
+            "/ нажм    ctrl   чтоб  закр",
+            "- нажми   ctrl+  чтобы закры",
+            "\\ нажмит  ctrl+c чтобы закрыт",
+            "| нажмите ctrl+c чтобы закрыть",
+            "/ нажмите ctrl+c чтобы закрыть",
+            "- нажмите ctrl+c чтобы закрыть",
+            "\\ нажмите ctrl+c чтобы закрыть",
+            "| нажмите ctrl+c чтобы закрыть",
+            "/ нажмите ctrl+c чтобы закрыть",
+            "- нажмите ctrl+c чтобы закрыть",
+            "\\  ажмите  trl+c  тобы  акрыть",
+            "|   жмите   rl+c   обы   крыть",
+            "/    мите    l+c    бы    рыть",
+            "-     ите     +c     ы     ыть",
+            "\\      те      c            ть",
+            "|       е                    ь",
+            "/                              ",
+            "-",
+            "\\",
+            "|",
+            "/",
+            "-",
+            "\\",
+            "|",
+            "/",
+            "-",
+            "\\",
+            "|",
+            "/",
+            "-",
+            "\\",
+            "|",
+            "/",
+            "-",
+            "\\",
+            "|",
+            "/",
+            "-",
+            "\\",
+            "|",
+            "/",
+        ];
+        let mut i = 0;
+        loop {
+            async_std::task::sleep(Duration::from_millis(200)).await;
+            print!("\r{}", markers[i]);
+            io::stdout().flush().expect("TODO: panic message");
+            i = (i + 1 ) % markers.len();
+        }
+    }
+
     exit(0);
 }
